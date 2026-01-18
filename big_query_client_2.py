@@ -26,6 +26,7 @@ def run_query(query: str):
         rows = client.query_and_wait(query)
         return rows.to_dataframe(), None
     except Exception as e:
+        safe_bigquery_error(e, context="Running SQL query")
         return None, str(e)
 
 
@@ -48,11 +49,28 @@ def get_schema(dataset: str):
 
     if error:
         st.session_state.query_error = error
+        safe_bigquery_error(error, context="Loading dataset schema")
         return pd.DataFrame({"table_id": []})
 
     df = df.rename(columns={"table_name": "table_id"})
     return df
 
+def safe_bigquery_error(error: Exception, context: str = ""):
+    st.error(
+        f"""
+        Something went wrong while processing your request.
+
+        **Context:** {context}
+
+        This may be due to:
+        - Temporary connection issues  
+        - Missing or invalid credentials  
+        - Insufficient permissions  
+        - An unexpected BigQuery response  
+
+        Please try again or contact the app administrator if the issue persists.
+        """
+    )
 
 # ---------------------------------------------------------
 # Plotting (Scatter, Line, Bar)
