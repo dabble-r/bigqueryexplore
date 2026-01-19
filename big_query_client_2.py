@@ -127,6 +127,56 @@ def safe_bigquery_error(error: Exception, context: str = ""):
 # ---------------------------------------------------------
 # Plotting (Scatter, Line, Bar)
 # ---------------------------------------------------------
+def make_scatter_chart(df, x, y, legend_field, x_type, y_type):
+    import altair as alt
+    return (
+        alt.Chart(df)
+        .mark_point(size=80)
+        .encode(
+            x=alt.X(f"{x}:{x_type}", title=x),
+            y=alt.Y(f"{y}:{y_type}", title=y),
+            color=(
+                alt.Color(legend_field, title="Legend")
+                if legend_field else alt.value("steelblue")
+            ),
+            tooltip=[x, y],
+        )
+    )
+
+
+def make_line_chart(df, x, y, legend_field, x_type, y_type):
+    import altair as alt
+    return (
+        alt.Chart(df)
+        .mark_line(point=True)
+        .encode(
+            x=alt.X(f"{x}:{x_type}", title=x),
+            y=alt.Y(f"{y}:{y_type}", title=y),
+            color=(
+                alt.Color(legend_field, title="Legend")
+                if legend_field else alt.value("steelblue")
+            ),
+            tooltip=[x, y],
+        )
+    )
+
+
+def make_bar_chart(df, x, y, legend_field, x_type, y_type):
+    import altair as alt
+    return (
+        alt.Chart(df)
+        .mark_bar()
+        .encode(
+            x=alt.X(f"{x}:{x_type}", title=x),
+            y=alt.Y(f"{y}:{y_type}", title=y),
+            color=(
+                alt.Color(legend_field, title="Legend")
+                if legend_field else alt.value("steelblue")
+            ),
+            tooltip=[x, y],
+        )
+    )
+
 def plotting_altair(df: pd.DataFrame, x: str, y: str, chart_type: str):
     import altair as alt
 
@@ -135,14 +185,12 @@ def plotting_altair(df: pd.DataFrame, x: str, y: str, chart_type: str):
         return
 
     if x not in df.columns or y not in df.columns:
-        st.warning(
-            f"Selected fields are not valid for this dataset. "
-            f"Available columns: {df.columns.tolist()}"
-        )
+        st.warning(f"Selected fields are not valid. Columns: {df.columns.tolist()}")
         return
 
     df = df.copy()
 
+    # Convert numeric-looking strings
     for col in df.columns:
         if df[col].dtype == "object":
             df[col] = pd.to_numeric(df[col], errors="ignore")
@@ -162,31 +210,23 @@ def plotting_altair(df: pd.DataFrame, x: str, y: str, chart_type: str):
     if legend_field and legend_field not in df.columns:
         legend_field = None
 
+    # --- Choose chart ---
     if chart_type == "Scatter":
-        chart = alt.Chart(df).mark_point(size=80)
+        chart = make_scatter_chart(df, x, y, legend_field, x_type, y_type)
     elif chart_type == "Line":
-        chart = alt.Chart(df).mark_line(point=True)
+        chart = make_line_chart(df, x, y, legend_field, x_type, y_type)
     elif chart_type == "Bar":
-        chart = alt.Chart(df).mark_bar()
+        chart = make_bar_chart(df, x, y, legend_field, x_type, y_type)
     else:
-        chart = alt.Chart(df).mark_point(size=80)
+        chart = make_scatter_chart(df, x, y, legend_field, x_type, y_type)
 
-    chart = chart.encode(
-        x=alt.X(f"{x}:{x_type}", title=x),
-        y=alt.Y(f"{y}:{y_type}", title=y),
-        color=(
-            alt.Color(legend_field, title="Legend")
-            if legend_field
-            else alt.value("steelblue")
-        ),
-        tooltip=[x, y],
-    ).properties(
+    chart = chart.properties(
         width="container",
         height=600,
         title=f"{chart_type} Chart"
     ).interactive()
 
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, use_container_width=True, width="stretch", height="content")
 
 
 # ---------------------------------------------------------
