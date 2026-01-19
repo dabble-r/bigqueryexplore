@@ -1,4 +1,5 @@
 import streamlit as st
+from st_copy import copy_button
 import pandas as pd
 from google.cloud import bigquery
 from google.oauth2 import service_account
@@ -80,7 +81,23 @@ def user_key_handler(user_key_json):
         st.error("No key provided. Please paste your BigQuery key.")
         return False
 
+    
+def show_table_preview(table_id: str):
+    st.write(f"**Schema**: `{table_id}`")
 
+    client = st.session_state.client
+
+    table_ref = f"bigquery-public-data.{st.session_state.selected_dataset}.{table_id}"
+    table = client.get_table(table_ref)
+
+    schema_rows = [
+        {"name": field.name, "type": field.field_type, "mode": field.mode}
+        for field in table.schema
+    ]
+
+    df_schema = pd.DataFrame(schema_rows)
+
+    st.dataframe(df_schema, use_container_width=True)
 
 
 # ---------------------------------------------------------
@@ -334,27 +351,58 @@ def render_plot_if_ready():
 def build_main_view():
     st.title("BigQuery Explorer")
 
+    # Dataset selection
     datasets = get_all_datasets()
-    selected_dataset = st.selectbox(
-        "Select Dataset",
-        datasets,
-        key="main_dataset_select"
-    )
+    selected_dataset = st.selectbox("Select Dataset", datasets, key="main_dataset_select")
 
+    # Load tables when dataset changes
     if selected_dataset != st.session_state.get("selected_dataset"):
         st.session_state.selected_dataset = selected_dataset
-        st.session_state.schema = get_schema(selected_dataset)
-        st.session_state.initial_df = None
-        st.session_state.query_error = None
-        st.session_state.plot_ready = False
+        st.session_state.schema = (
+            get_schema(selected_dataset)
+            .map(str)
+            .reset_index(drop=True)
+        )
+        st.session_state.selected_table = None
 
-    if st.session_state.schema is not None:
-        st.write(f"ID: bigquery-public-data.{selected_dataset}")
-        st.write("Tables:")
-        st.dataframe(st.session_state.schema)
+    df_schema = st.session_state.schema
 
+    # --- NEW: Table selection via selectbox ---
+    table_list = df_schema["table_id"].tolist()
+
+    selected_table = st.selectbox(
+        "Select a table",
+        table_list,
+        key="table_select"
+    )
+
+    id_copy =f"`bigquery-public-data.{selected_dataset}.{selected_table}`"
+    col1, col2 = st.columns([4, 1])
+
+    with col1:
+        st.write(f"**Dataset ID**: {id_copy}")
+
+    with col2:
+        copy_button(
+            id_copy,
+            tooltip="Copy dataset id",
+            copied_label="Copied!",
+            icon="st",
+            key="dataset_id_copy_btn"
+        )
+
+    st.session_state.selected_table = selected_table
+
+    # --- Show schema preview ---
+    if st.session_state.selected_table:
+        show_table_preview(st.session_state.selected_table)
+
+    # -----------------------------
+    # SQL Query Input
+    # -----------------------------
     st.text_area(
         "Enter SQL Query",
+        value=f"SELECT * \nFROM `bigquery-public-data.<dataset_id>.<table_id>`\nLIMIT 10;",
         height=150,
         key="main_query_text"
     )
@@ -366,17 +414,19 @@ def build_main_view():
         key="submit_main"
     )
 
+    # -----------------------------
+    # Query Results
+    # -----------------------------
     if st.session_state.initial_df is not None:
         st.write("Query Result:")
         st.dataframe(st.session_state.initial_df)
-
 
 # ---------------------------------------------------------
 # App Layout
 # ---------------------------------------------------------
 def init_state():
     defaults = {
-        "schema": None,
+        "schema": pd.DataFrame({"table_id": []}),
         "selected_dataset": None,
         "initial_df": None,
         "query_error": None,
@@ -386,6 +436,8 @@ def init_state():
         "chart_type_selected": None,
         "user_key_json": None,
         "client": None,
+        "full_dataset_path": None,
+        "selected_table": None, 
     }
     for k, v in defaults.items():
         if k not in st.session_state:
