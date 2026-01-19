@@ -66,17 +66,22 @@ def get_schema(dataset: str):
 def user_key_handler(user_key_json):
     if user_key_json:
         st.session_state["user_key_json"] = user_key_json
+       
         client = get_dynamic_client(st.session_state.user_key_json)
 
         if client:
             st.success("Key saved successfully")
             st.session_state.client = client
+            st.session_state.update({"user_key_json": None})
         else:
             st.error("Invalid credentials. Please try again.")
         return True
     else:
         st.error("No key provided. Please paste your BigQuery key.")
         return False
+
+
+
 
 # ---------------------------------------------------------
 # Schema Change Detector (ONLY for SQL query results)
@@ -222,7 +227,8 @@ def build_sidebar_chart_builder():
 
     user_key_json = st.sidebar.text_area(
         "BigQuery key (JSON):",
-        height=200,
+        height=150,
+        width="stretch",
         key="user_key_json"
         )
     
@@ -231,12 +237,7 @@ def build_sidebar_chart_builder():
         on_click=lambda: user_key_handler(user_key_json),
         key="save_key_btn"
     )
-
-    if user_key_submit:
-        st.sidebar.success("Key saved successfully")
-        st.sidebar.user_key_json = ""
-
-
+ 
     df = st.session_state.initial_df
 
     if df is None or df.empty:
