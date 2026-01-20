@@ -46,3 +46,19 @@ private_key = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 client_email = "..."
 client_id = "..."
 ```
+
+# Translate 
+
+## LLM Model 
+* "google-t5/t5-base"
+
+## Model Params 
+```
+inputs*	string	The text to translate.
+parameters	object	
+  src_lang	string	The source language of the text. Required for models that can translate from multiple languages.
+  tgt_lang	string	Target language to translate to. Required for models that can translate to multiple languages.
+  clean_up_tokenization_spaces	boolean	Whether to clean up the potential extra spaces in the text output.
+  truncation	enum	Possible values: do_not_truncate, longest_first, only_first, only_second.
+  generate_parameters	object	Additional parametrization of the text generation algorithm.
+```

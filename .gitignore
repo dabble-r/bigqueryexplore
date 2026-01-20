@@ -1,3 +1,4 @@
 myenv/
+.env
 .streamlit/secrets.toml
 samples_sql.txt
