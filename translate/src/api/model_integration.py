@@ -25,7 +25,7 @@ def chat_with_model(prompt, container, tab):
     params = state.params
     source_lang = state.source_lang
     target_lang = state.target_lang
-    hf_token = state.HF_TOKEN
+    user_api_key = state.user_api_key
     #print("prompt: ", prompt)
     print("source_lang: ", source_lang)
     #print("target_lang: ", target_lang)

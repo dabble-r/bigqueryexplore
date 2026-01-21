@@ -55,11 +55,34 @@ def setup_page():
 
 def user_key_handler(user_api_key):
     if user_api_key:
-        os.environ["HF_TOKEN"] = user_api_key
-        
+        st.session_state.user_api_key = user_api_key
+        client = get_client(st.session_state.user_api_key)
+        return client
     else:
         st.error("No key provided. Please paste your API key.")
         
+def get_client(user_api_key):
+    if user_api_key:
+        client = InferenceClient(
+            provider="hf-inference",
+            api_key=user_api_key,
+        )
+        if client:
+            st.success("Key saved successfully")
+            st.session_state.client = client
+            return client
+        else:
+            st.error("Invalid credentials. Please try again.")
+            return None
+    else:
+        st.error("No key provided. Please paste your API key.")
+        return None
+
+def key_handler(user_api_key):
+    client = get_client(st.session_state.user_api_key)
+    st.session_state.client = client
+    return client
+
 
 def main():
     setup_page()
@@ -98,26 +121,13 @@ def main():
             key="user_api_key"
         )
     
-        user_key_submit = st.sidebar.button(
+        # returns client object
+        key_clicked_client = st.sidebar.button(
             "Save Key",
-            on_click=lambda: user_key_handler(user_api_key),
+            on_click=lambda: key_handler(user_api_key),
             key="save_key_btn"
         )
-
-
-        if st.session_state.user_api_key:
-            client = InferenceClient(
-                provider="hf-inference",
-                api_key=st.session_state.user_api_key,
-            )
-
-            
-            if client:
-                st.session_state.client = client
-                st.success("Key saved successfully")
-            else:
-                st.error("Invalid credentials. Please try again.")
-
+    
         langs = ["eng_Latn", "fra_Latn"]
 
         source_lang = st.selectbox(
@@ -151,9 +161,9 @@ def main():
         st.caption(f"Character count: {len(text)}")
         st.session_state.messages = text
 
-        if st.button("Translate and Analyze", type="primary"):
-            if text:
-                
+        if st.button("Translate and Analyze", type="primary", key="translate_and_analyze_btn"):
+            if text and st.session_state.client:
+                st.session_state.translate_and_analyze_btn = True
                 # Tabs for different analysis types
                 tab1, tab2 = st.tabs(
                     [
@@ -198,7 +208,9 @@ def main():
                                 
                     except Exception as e:
                         print("ret_sentiment_except: ", e)
-
+            else:
+                st.error("Please enter key!")
+                
     # Sidebar for additional information and feedback
     with st.sidebar:
         st.subheader("About")
@@ -207,7 +219,8 @@ def main():
 
 def init_state():
     defaults = {
-        "HF_TOKEN": os.getenv("HF_TOKEN"),
+        "key_clicked": False,
+        "user_api_key": None,
         "model_id": None,
         "model_id_en_fr": "Helsinki-NLP/opus-mt-tc-big-en-fr",
         "model_id_fr_en": "Helsinki-NLP/opus-mt-fr-en",
